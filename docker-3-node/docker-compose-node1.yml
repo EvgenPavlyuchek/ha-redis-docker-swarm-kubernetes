@@ -1,0 +1,58 @@
+services:
+  redis1:
+    image: bitnami/redis:7.2.4
+    container_name: redis1
+    restart: unless-stopped
+    environment:
+      - REDIS_REPLICATION_MODE=master
+      - REDIS_PASSWORD=redis
+    # ports:
+    #   - "6379:6379"
+    network_mode: "host"
+    logging:
+      driver: "json-file"
+      options:
+        "max-size": "10m"
+        "max-file": "5"
+    volumes:
+      # - redis1:/data
+      - /etc/localtime:/etc/localtime:ro
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -a $$REDIS_PASSWORD ping | grep PONG"]
+      interval: 30s
+      timeout: 10s
+      retries: 4
+      start_period: 10s
+
+
+  redis-sentinel1:
+    image: bitnami/redis-sentinel:7.2.4
+    container_name: redis-sentinel1
+    restart: unless-stopped
+    environment:
+      - REDIS_MASTER_SET=mymaster
+      - REDIS_MASTER_PASSWORD=redis
+      - REDIS_SENTINEL_DOWN_AFTER_MILLISECONDS=6000
+      - REDIS_SENTINEL_RESOLVE_HOSTNAMES=yes
+      - REDIS_MASTER_PORT_NUMBER=6379
+      - REDIS_SENTINEL_PORT_NUMBER=26379
+      - REDIS_MASTER_HOST=<IP_NODE_1>
+    # ports: 
+    #    - "26379:26379"
+    network_mode: "host"
+    logging:
+      driver: "json-file"
+      options:
+        "max-size": "10m"
+        "max-file": "5"
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -p 26379 SENTINEL sentinels $$REDIS_MASTER_SET | grep sentinel"]
+      interval: 30s
+      timeout: 10s
+      retries: 4
+      start_period: 10s
+    depends_on:
+      redis1:
+        condition: service_healthy
